@@ -1,0 +1,264 @@
+%% LBP  质量评估
+
+clc;clear;
+close all;
+
+num1 = 636;      %所测试的手指数量
+num2 = 6;      %每个手指的图片数量
+
+LBP_sum_feature = zeros(17700,num1,num2);
+threshold_1 = 1.5;
+threshold_2 = 3.0;
+
+%% 读入图像并计算LBP特征
+for i=1:num1
+    for j=1:num2
+        str = strcat('F:\数据处理\VEIN\SDUMLA\重新排序\',(int2str(i)),'\',(int2str(i)),'_',(int2str(j)),'.jpg');
+        img = imread(str);
+        img = rgb2gray(img);
+        %img= imrotate(img,90);
+        %figure,imshow(img);title('对图像进行旋转')
+        LBP_feature = extractLBPFeatures(img,'CellSize',[16 16]);
+        %figure,stem(LBP_feature);
+        %figure,histogram(LBP_feature,50);
+        LBP_sum_feature(:,i,j) = LBP_feature;
+    end
+end
+
+
+
+
+%% 计算每个手指与同类手指的相似度
+LBP_similar_avg_same = zeros(num1,num2);
+LBP_similar_finger_avg_same = zeros(num1,1);
+similar_same = zeros(1,5);
+for i=1:num1      %计算相同手指的
+    for j=1:num2
+        num =0;
+        for k=1:num2
+            if j~=k
+                num = num+1;
+                similar_same(1,num) = sum((double(LBP_sum_feature(:,i,j))-double(LBP_sum_feature(:,i,k))).^2);
+            end
+        end
+        LBP_similar_avg_same(i,j) = mean(mean(similar_same));
+    end
+    LBP_similar_finger_avg_same(i) = mean(LBP_similar_avg_same(i,:));
+end
+
+figure,surf(LBP_similar_avg_same)
+figure,plot(LBP_similar_finger_avg_same)
+LBP_similar_finger_avg = mean(LBP_similar_finger_avg_same);
+disp("所有手指的相似度均值为 "+LBP_similar_finger_avg);
+
+
+%% 找出质量较差的手指---第一次筛选
+LBP_sum_qua_feature_1 = LBP_sum_feature;
+LBP_similar_avg_same_1 = LBP_similar_avg_same;
+lowQ_num = 0;
+for i=1:num1
+    for j=1:num2
+        t = LBP_similar_avg_same(i,j);  %要检测的手指的平均相似度
+        avg_sim =(sum(sum(LBP_similar_avg_same(i,:)))-t)/(num2-1);       %剩余手指的平均相似度
+        if t>(avg_sim*threshold_1)
+            disp("第一次筛选-低质量图像为 "+i+"_"+j);
+            lowQ_num = lowQ_num+1;
+            LBP_sum_qua_feature_1(:,i,j) = 0;
+            LBP_similar_avg_same_1(i,j) = 0;
+        end
+    end
+end
+figure,surf(LBP_similar_avg_same_1)
+disp("第一次筛选共找出低质量图像数量为 "+lowQ_num);
+tttt = LBP_similar_avg_same_1(LBP_similar_avg_same_1>0);
+LBP_similar_finger_avg_1 = mean(tttt);
+disp("第一次筛选后，所有手指的相似度均值为 "+LBP_similar_finger_avg_1);
+
+
+
+
+% %% 找出质量较差的手指---第二次筛选(先计算第一次筛选后剩下手指的相似度，在进行筛选)
+% LBP_similar_finger_avg_same_1 = zeros(num1,1);
+% LBP_similar_avg_same_temp = zeros(num1,num2);
+% for i=1:num1      %计算相同手指的-除去第一次筛选去掉的手指
+%     for j=1:num2
+%        if LBP_similar_avg_same_1(i,j) ==0   %第一次去除的直接置0
+%             LBP_similar_avg_same_temp(i,j) = 0;         
+%        else
+%             num =0;
+%             for k=1:num2
+%                 if j~=k
+%                     num = num+1;
+%                     similar_same(1,num) = sum((double(LBP_sum_feature(:,i,j))-double(LBP_sum_feature(:,i,k))).^2);
+%                     if (sum(abs(LBP_sum_qua_feature_1(:,i,j)))==0)||(sum(abs(LBP_sum_qua_feature_1(:,i,k)))==0)
+%                         similar_same(1,num) = 0;
+%                     end
+%                 end
+%             end
+%             similar_same = similar_same(similar_same>0);
+%             LBP_similar_avg_same_temp(i,j) = mean(mean(similar_same));
+%        end
+%     end
+%     www = LBP_similar_avg_same_temp(i,:);
+%     www = www(www>0);
+%     www = mean(www);
+%     LBP_similar_finger_avg_same_1(i) = www;
+% end
+% figure,plot(LBP_similar_finger_avg_same_1)
+% yyyy = LBP_similar_avg_same_temp(LBP_similar_avg_same_temp>0);
+% LBP_similar_finger_avg_temp = mean(yyyy);
+% lowQ_num2 = 0;
+% LBP_sum_qua_feature_2 = LBP_sum_qua_feature_1;
+% LBP_similar_avg_same_2 = LBP_similar_avg_same_temp;
+% for i=1:num1
+%     for j=1:num2
+%         if LBP_similar_avg_same_temp(i,j)>(LBP_similar_finger_avg_temp*threshold_2)
+%             disp("第二次筛选-低质量图像为 "+i+"_"+j);
+%             lowQ_num2 = lowQ_num2+1;
+%             LBP_sum_qua_feature_2(:,i,j) = 0;
+%             LBP_similar_avg_same_2(i,j) = 0;
+%             
+%         end
+%     end
+% end
+% figure,surf(LBP_similar_avg_same_2)
+% disp("第二次筛选共找出低质量图像数量为 "+lowQ_num2);
+% uuuu = LBP_similar_avg_same_2(LBP_similar_avg_same_2>0);
+% LBP_similar_finger_avg_2 = mean(uuuu);
+% disp("第二次筛选后，所有手指的相似度均值为 "+LBP_similar_finger_avg_2);
+
+
+
+%% 计算识别率-完整数据集
+LBP_similar_same = zeros(num1,(1+num2-1)*(num2-1)/2);
+for i=1:num1      %计算相同手指的
+    num =0;
+    for j=1:(num2-1)
+        for k=(j+1):num2
+            num = num+1;
+            LBP_similar_same(i,num) = sum((double(LBP_sum_feature(:,i,j))-double(LBP_sum_feature(:,i,k))).^2);
+        end
+    end
+end
+
+LBP_similar_different = zeros(num1,num2*(num1-1)*num2);
+for i=1:num1      %计算不同手指的
+    num =0;
+    for j=1:num2
+        for k =i:num1
+            if i~=k
+                for t=1:num2
+                    num = num+1;
+                    LBP_similar_different(i,num) = sum((double(LBP_sum_feature(:,i,j))-double(LBP_sum_feature(:,k,t))).^2);
+                end
+            end
+        end
+    end
+end
+
+%save('.\LBPdata1.mat','LBP_similar_avg_same','LBP_sum_feature','LBP_similar_same','LBP_similar_different');
+%load('.\ceshi3\LBPdata1.mat','HOG_feature','HOG_similar_same','HOG_similar_different');
+
+LBP_statistics_same = LBP_similar_same(LBP_similar_same>0);
+LBP_statistics_different = LBP_similar_different(LBP_similar_different>0);
+
+figure,hist(LBP_statistics_same)
+figure,hist(LBP_statistics_different)
+
+LBP_statistics_same = roundn(LBP_statistics_same,-3);
+LBP_statistics_different = roundn(LBP_statistics_different,-3);
+
+s1 = tabulate(LBP_statistics_same(:));
+s2 = tabulate(LBP_statistics_different(:));
+[sum1,~] = size(LBP_statistics_same);
+[sum2,~] = size(LBP_statistics_different);
+figure
+plot(s1(:,1),s1(:,3),'o-b')
+xlabel("相似度");
+ylabel("概率/%");
+hold on 
+plot(s2(:,1),s2(:,3),'.-r')
+legend('相同手指对比的相似度','不同手指对比的相似度')
+hold off
+
+disp("设定阈值，计算对应识别率和误识率");
+for i=0:0.1:200
+    a1 = length(find(LBP_statistics_same<i))/(sum1);
+    b1 = length(find(LBP_statistics_different<i))/(sum2);
+    disp("阈值为"+i+"时,识别率为:"+a1+";误识率为:"+b1);
+    if abs(1-a1-b1)<0.001
+        disp("阈值为"+i+"时,EER为:"+b1+"    ........................................");
+    end
+end
+
+
+
+
+
+%% 计算识别率-去除低质量数据集
+LBP_similar_qua_same = zeros(num1,(1+num2-1)*(num2-1)/2);
+for i=1:num1      %计算相同手指的
+    num =0;
+    for j=1:(num2-1)
+        for k=(j+1):num2
+            num = num+1;
+            LBP_similar_qua_same(i,num) = sum((double(LBP_sum_qua_feature_2(:,i,j))-double(LBP_sum_qua_feature_2(:,i,k))).^2);
+            if (sum(abs(LBP_sum_qua_feature_2(:,i,j)))==0)||(sum(abs(LBP_sum_qua_feature_2(:,i,k)))==0)
+                LBP_similar_qua_same(i,num) = 0;
+            end
+        end
+    end
+end
+
+LBP_similar_qua_different = zeros(num1,num2*(num1-1)*num2);
+for i=1:num1      %计算不同手指的
+    num =0;
+    for j=1:num2
+        for k =i:num1
+            if i~=k
+                for t=1:num2
+                    num = num+1;
+                    LBP_similar_qua_different(i,num) = sum((double(LBP_sum_qua_feature_2(:,i,j))-double(LBP_sum_qua_feature_2(:,k,t))).^2);
+                    if (sum(abs(LBP_sum_qua_feature_2(:,i,j)))==0)||(sum(abs(LBP_sum_qua_feature_2(:,k,t)))==0)
+                        LBP_similar_qua_different(i,num) = 0;
+                    end
+                end
+            end
+        end
+    end
+end
+
+%save('.\LBPdata-2.0.mat','LBP_similar_avg_same','LBP_sum_feature','LBP_similar_same','LBP_similar_different','LBP_sum_qua_feature','LBP_similar_qua_same','LBP_similar_qua_different');
+%load('.\ceshi3\LBPdata1.mat','HOG_feature','HOG_similar_same','HOG_similar_different');
+
+LBP_statistics_qua_same = LBP_similar_qua_same(LBP_similar_qua_same>0);
+LBP_statistics_qua_different = LBP_similar_qua_different(LBP_similar_qua_different>0);
+
+figure,hist(LBP_statistics_qua_same)
+figure,hist(LBP_statistics_qua_different)
+
+LBP_statistics_qua_same = roundn(LBP_statistics_qua_same,-3);
+LBP_statistics_qua_different = roundn(LBP_statistics_qua_different,-3);
+
+s1_qua = tabulate(LBP_statistics_qua_same(:));
+s2_qua = tabulate(LBP_statistics_qua_different(:));
+[sum1_qua,~] = size(LBP_statistics_qua_same);
+[sum2_qua,~] = size(LBP_statistics_qua_different);
+figure
+plot(s1_qua(:,1),s1_qua(:,3),'o-b')
+xlabel("相似度");
+ylabel("概率/%");
+hold on 
+plot(s2_qua(:,1),s2_qua(:,3),'.-r')
+legend('相同手指对比的相似度','不同手指对比的相似度')
+hold off
+
+disp("设定阈值，计算对应识别率和误识率");
+for i=0:0.1:200
+    a1_qua = length(find(LBP_statistics_qua_same<i))/(sum1_qua);
+    b1_qua = length(find(LBP_statistics_qua_different<i))/(sum2_qua);
+    disp("阈值为"+i+"时,识别率为:"+a1_qua+";误识率为:"+b1_qua);
+    if abs(1-a1_qua-b1_qua)<0.001
+        disp("阈值为"+i+"时,EER为:"+b1_qua+"    ........................................");
+    end
+end

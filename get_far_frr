@@ -1,0 +1,24 @@
+function [FAR,FRR] = get_far_frr(matpath)
+load(matpath);
+MC_statistics_same = LBP_similar_qua_same(LBP_similar_qua_same>0);
+MC_statistics_different = LBP_similar_qua_different(LBP_similar_qua_different>0);
+[sum1,~] = size(MC_statistics_same);
+[sum2,~] = size(MC_statistics_different);
+
+th = 0:0.1:500;  %阈值，一共xxx个  
+N=length(th); 
+for i=1:N
+    a1 = length(find(MC_statistics_same>(th(i))))/(sum1);  %识别率
+    b1 = length(find(MC_statistics_different>(th(i))))/(sum2);%误识率
+    
+    EER(1,i)=th(i);  %第一行放阈值
+    frr = length(find(MC_statistics_same>(th(i))))/sum1;      %合法匹配,错误拒绝
+    far = length(find(MC_statistics_different<(th(i))))/sum2;       %非法匹配，错误接收
+    EER(2,i)=frr;%第二行放FRR
+    EER(3,i) = far;
+    FRR(i) = frr;
+    FAR(i) = far;
+end
+
+end
+

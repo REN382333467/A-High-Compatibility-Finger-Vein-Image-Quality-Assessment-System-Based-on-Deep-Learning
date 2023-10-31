@@ -1,0 +1,27 @@
+clc;clear;
+close all;
+
+path1='./LBP-SDMLA-1.5+1.5.mat';
+path2='./LBP-SDMLA-1.5+2.5.mat';
+path3='./LBP-SDMLA-1.5+2.mat';
+path4='./LBP-SDMLA-2.5+1.5.mat';
+[FAR1,FRR1] = get_far_frr(path1);
+
+plot(FAR1,FRR1,'-.k');  %虚点线 黑色
+xlim([0,0.5]);
+ylim([0,0.5]);
+hold on 
+% plot(th,th,'-');%(y=x斜率为45°的直线，用于求ERR)
+[FAR2,FRR2] = get_far_frr(path2);
+plot(FAR2,FRR2,'--b'); %%-- 蓝色
+[FAR3,FRR3] = get_far_frr(path3);
+plot(FAR3,FRR3,'*m'); %%*  紫色
+[FAR4,FRR4] = get_far_frr(path4);
+plot(FAR4,FRR4,'-r');  %实线黑色
+
+th=[0:0.01:0.5]
+plot(th,th,'-');%(y=x斜率为45°的直线，用于求ERR)
+xlabel('FAR');
+ylabel('FRR');
+legend('Lee region','Threshold method','Sobel','Proposed')
+hold off;
